@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>WB Monitor</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  :root {
+    --green: #4CAF50;
+    --green-light: #e8f5e9;
+    --green-dark: #388E3C;
+    --text: #1a1a1a;
+    --text-secondary: #666;
+    --border: #e0e0e0;
+    --bg: #f5f5f5;
+    --card: #ffffff;
+    --red: #F44336;
+    --orange: #FF9800;
+    --blue: #2196F3;
+  }
+
+  body {
+    font-family: -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    font-size: 14px;
+    padding-bottom: 24px;
+  }
+
+  /* ── SETUP SCREEN ── */
+  #setup-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+    gap: 20px;
+  }
+
+  .setup-logo {
+    width: 72px;
+    height: 72px;
+    background: var(--green);
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+  }
+
+  .setup-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    color: var(--text);
+  }
+
+  .setup-subtitle {
+    font-size: 13px;
+    color: var(--text-secondary);
+    text-align: center;
+    line-height: 1.5;
+  }
+
+  .setup-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .setup-card label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+
+  .setup-card input {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1.5px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    font-family: 'SF Mono', monospace;
+    color: var(--text);
+    background: #fafafa;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .setup-card input:focus {
+    border-color: var(--green);
+    background: #fff;
+  }
+
+  .btn-primary {
+    width: 100%;
+    padding: 14px;
+    background: var(--green);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  .btn-primary:active { transform: scale(0.98); background: var(--green-dark); }
+
+  /* ── MAIN SCREEN ── */
+  #main-screen { display: none; }
+
+  .header {
+    background: var(--card);
+    padding: 16px 16px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .header-left { display: flex; flex-direction: column; }
+
+  .header-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .header-updated {
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+  }
+
+  .btn-refresh {
+    background: var(--green-light);
+    color: var(--green-dark);
+    border: none;
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: background 0.2s, transform 0.1s;
+  }
+
+  .btn-refresh:active { transform: scale(0.95); }
+  .btn-refresh.loading { opacity: 0.6; pointer-events: none; }
+
+  .refresh-icon {
+    font-size: 15px;
+    transition: transform 0.6s;
+  }
+
+  .btn-refresh.loading .refresh-icon {
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+
+  /* ── SUMMARY CARDS ── */
+  .section { padding: 14px 16px 0; }
+
+  .section-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+  }
+
+  .summary-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .summary-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 12px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  }
+
+  .summary-label {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-weight: 500;
+  }
+
+  .summary-value {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.1;
+  }
+
+  .summary-sub {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-weight: 400;
+  }
+
+  .badge-green { background: var(--green-light); color: var(--green-dark); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+  .badge-red   { background: #ffebee; color: var(--red); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+  .badge-orange{ background: #fff3e0; color: var(--orange); font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 2px; }
+
+  /* ── ARTICLE LIST ── */
+  .articles-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .article-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 12px 14px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  }
+
+  .article-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .article-num {
+    width: 22px;
+    height: 22px;
+    background: var(--green);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+
+  .article-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .article-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .article-stat {
+    background: #fafafa;
+    border-radius: 8px;
+    padding: 7px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .article-stat-label {
+    font-size: 9px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  .article-stat-value {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .article-stat-sub {
+    font-size: 9px;
+    color: var(--text-secondary);
+  }
+
+  /* ── FOOTER CARDS ── */
+  .footer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .footer-card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  }
+
+  .footer-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+  }
+
+  .footer-info { display: flex; flex-direction: column; gap: 2px; }
+
+  .footer-value {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .footer-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  .footer-value.warn { color: var(--orange); }
+  .footer-value.danger { color: var(--red); }
+
+  /* ── SETTINGS BTN ── */
+  .settings-btn {
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 4px;
+  }
+
+  /* ── LOADING OVERLAY ── */
+  #loading-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,0.85);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .loader {
+    width: 36px;
+    height: 36px;
+    border: 3px solid var(--green-light);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  .loading-text { font-size: 13px; color: var(--text-secondary); font-weight: 500; }
+
+  /* ── ERROR ── */
+  .error-banner {
+    background: #ffebee;
+    border: 1px solid #ffcdd2;
+    border-radius: 10px;
+    padding: 12px 14px;
+    font-size: 12px;
+    color: var(--red);
+    margin: 0 16px 12px;
+    display: none;
+    line-height: 1.4;
+  }
+
+  /* ── EMPTY STATE ── */
+  .empty-state {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--text-secondary);
+    font-size: 13px;
+  }
+
+  .section + .section { margin-top: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ══ SETUP SCREEN ══ -->
+<div id="setup-screen">
+  <div class="setup-logo">📦</div>
+  <div>
+    <div class="setup-title">WB Monitor</div>
+    <div class="setup-subtitle" style="margin-top:6px">Введи данные один раз —<br>они сохранятся на телефоне</div>
+  </div>
+
+  <div class="setup-card">
+    <label>WB API Токен</label>
+    <input type="password" id="input-token" placeholder="eyJhbGciOiJFUzI1Ni..." autocomplete="off">
+    <label style="margin-top:4px">URL Cloudflare Worker</label>
+    <input type="url" id="input-worker" placeholder="https://your-worker.workers.dev">
+  </div>
+
+  <button class="btn-primary" onclick="saveSettings()">Сохранить и открыть</button>
+</div>
+
+<!-- ══ MAIN SCREEN ══ -->
+<div id="main-screen">
+  <div class="header">
+    <div class="header-left">
+      <div class="header-title">📦 WB Monitor</div>
+      <div class="header-updated" id="last-updated">Нет данных</div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="btn-refresh" id="refresh-btn" onclick="refreshData()">
+        <span class="refresh-icon">↻</span> Обновить
+      </button>
+      <button class="settings-btn" onclick="openSettings()" title="Настройки">⚙️</button>
+    </div>
+  </div>
+
+  <div id="error-banner" class="error-banner"></div>
+
+  <!-- Summary -->
+  <div class="section">
+    <div class="section-title">Сегодня — общее</div>
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="summary-label">Заказы</div>
+        <div class="summary-value" id="total-orders">—</div>
+        <div class="summary-sub" id="total-orders-rub">— ₽</div>
+        <span class="badge-green" id="badge-orders">шт.</span>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Выкуп</div>
+        <div class="summary-value" id="total-sales">—</div>
+        <div class="summary-sub" id="total-sales-rub">— ₽</div>
+        <span class="badge-green" id="badge-sales">шт.</span>
+      </div>
+      <div class="summary-card">
+        <div class="summary-label">Реклама</div>
+        <div class="summary-value" id="total-adspend">—</div>
+        <div class="summary-sub">₽ расход</div>
+        <span class="badge-orange" id="badge-drr">ДРР —%</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Per Article -->
+  <div class="section" style="margin-top:14px">
+    <div class="section-title">По артикулам</div>
+    <div class="articles-list" id="articles-list">
+      <div class="empty-state">Нажми «Обновить» для загрузки данных</div>
+    </div>
+  </div>
+
+  <!-- Reviews & Questions -->
+  <div class="section" style="margin-top:14px">
+    <div class="section-title">Требуют внимания</div>
+    <div class="footer-grid">
+      <div class="footer-card">
+        <div class="footer-icon">⭐</div>
+        <div class="footer-info">
+          <div class="footer-value" id="reviews-count">—</div>
+          <div class="footer-label">Отзывов без<br>ответа</div>
+        </div>
+      </div>
+      <div class="footer-card">
+        <div class="footer-icon">💬</div>
+        <div class="footer-info">
+          <div class="footer-value" id="questions-count">—</div>
+          <div class="footer-label">Вопросов без<br>ответа</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay">
+  <div class="loader"></div>
+  <div class="loading-text" id="loading-text">Загружаем данные...</div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+//  CONFIG
+// ══════════════════════════════════════════
+let TOKEN = localStorage.getItem('wb_token') || ''
+let WORKER = localStorage.getItem('wb_worker') || ''
+const CACHE_KEY = 'wb_last_data'
+const CACHE_TIME_KEY = 'wb_last_time'
+
+// Init Telegram WebApp
+if (window.Telegram && window.Telegram.WebApp) {
+  Telegram.WebApp.ready()
+  Telegram.WebApp.expand()
+}
+
+// ══════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════
+function init() {
+  if (!TOKEN || !WORKER) {
+    showSetup()
+    return
+  }
+  showMain()
+  // Load cached data first
+  const cached = localStorage.getItem(CACHE_KEY)
+  const cachedTime = localStorage.getItem(CACHE_TIME_KEY)
+  if (cached) {
+    try {
+      renderData(JSON.parse(cached))
+      document.getElementById('last-updated').textContent = 'Обновлено: ' + cachedTime
+    } catch(e) {}
+  }
+}
+
+function showSetup() {
+  document.getElementById('setup-screen').style.display = 'flex'
+  document.getElementById('main-screen').style.display = 'none'
+  // Prefill if exists
+  document.getElementById('input-token').value = TOKEN
+  document.getElementById('input-worker').value = WORKER
+}
+
+function showMain() {
+  document.getElementById('setup-screen').style.display = 'none'
+  document.getElementById('main-screen').style.display = 'block'
+}
+
+function saveSettings() {
+  const t = document.getElementById('input-token').value.trim()
+  const w = document.getElementById('input-worker').value.trim()
+  if (!t || !w) {
+    alert('Заполни оба поля')
+    return
+  }
+  TOKEN = t
+  WORKER = w
+  localStorage.setItem('wb_token', t)
+  localStorage.setItem('wb_worker', w)
+  showMain()
+  refreshData()
+}
+
+function openSettings() {
+  showSetup()
+}
+
+// ══════════════════════════════════════════
+//  API
+// ══════════════════════════════════════════
+async function wbRequest(endpoint, params = {}, method = 'GET', payload = null) {
+  const res = await fetch(WORKER, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint, params, method, payload, token: TOKEN })
+  })
+  if (!res.ok) throw new Error(`Worker error: ${res.status}`)
+  return res.json()
+}
+
+function todayStr() {
+  // Returns YYYY-MM-DD in local time
+  const now = new Date()
+  const y = now.getFullYear()
+  const m = String(now.getMonth() + 1).padStart(2, '0')
+  const d = String(now.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
+// ══════════════════════════════════════════
+//  REFRESH
+// ══════════════════════════════════════════
+async function refreshData() {
+  setLoading(true, 'Загружаем данные...')
+  showError(null)
+  const btn = document.getElementById('refresh-btn')
+  btn.classList.add('loading')
+
+  try {
+    const today = todayStr()
+
+    // 1. Orders today
+    setLoadingText('Заказы...')
+    const orders = await wbRequest(
+      'https://statistics-api.wildberries.ru/api/v1/supplier/orders',
+      { dateFrom: today, flag: 0 }
+    )
+
+    // 2. Sales today
+    setLoadingText('Продажи...')
+    const sales = await wbRequest(
+      'https://statistics-api.wildberries.ru/api/v1/supplier/sales',
+      { dateFrom: today, flag: 0 }
+    )
+
+    // 3. Ad campaigns list (statuses 7=running, 9=paused, 11=ready)
+    setLoadingText('Реклама...')
+    let campIds = []
+    try {
+      const [c7, c9, c11] = await Promise.allSettled([
+        wbRequest('https://advert-api.wildberries.ru/adv/v1/promotion/adverts', { status: 7, limit: 50, offset: 0 }),
+        wbRequest('https://advert-api.wildberries.ru/adv/v1/promotion/adverts', { status: 9, limit: 50, offset: 0 }),
+        wbRequest('https://advert-api.wildberries.ru/adv/v1/promotion/adverts', { status: 11, limit: 50, offset: 0 }),
+      ])
+      const allCamps = [
+        ...(c7.status === 'fulfilled' && Array.isArray(c7.value) ? c7.value : []),
+        ...(c9.status === 'fulfilled' && Array.isArray(c9.value) ? c9.value : []),
+        ...(c11.status === 'fulfilled' && Array.isArray(c11.value) ? c11.value : []),
+      ]
+      campIds = [...new Set(allCamps.map(c => c.advertId).filter(Boolean))]
+    } catch(e) { /* ignore ad errors */ }
+
+    // 4. Ad fullstats
+    let totalAdSpend = 0
+    let adOrdersSum = 0
+    if (campIds.length > 0) {
+      try {
+        const adStats = await wbRequest(
+          'https://advert-api.wildberries.ru/adv/v3/fullstats',
+          { ids: campIds.slice(0, 50).join(','), beginDate: today, endDate: today }
+        )
+        if (Array.isArray(adStats)) {
+          adStats.forEach(camp => {
+            totalAdSpend += camp.sum || 0
+            adOrdersSum += camp.sum_price || 0
+          })
+        }
+      } catch(e) { /* ignore */ }
+    }
+
+    // 5. Feedbacks (unanswered)
+    setLoadingText('Отзывы и вопросы...')
+    let reviewsCount = 0
+    let questionsCount = 0
+    try {
+      const fb = await wbRequest(
+        'https://feedbacks-api.wildberries.ru/api/v1/feedbacks',
+        { isAnswered: false, take: 1, skip: 0 }
+      )
+      reviewsCount = fb?.data?.countUnanswered ?? (Array.isArray(fb?.data?.feedbacks) ? fb.data.feedbacks.length : 0)
+    } catch(e) {}
+
+    try {
+      const q = await wbRequest(
+        'https://feedbacks-api.wildberries.ru/api/v1/questions',
+        { isAnswered: false, take: 1, skip: 0 }
+      )
+      questionsCount = q?.data?.countUnanswered ?? (Array.isArray(q?.data?.questions) ? q.data.questions.length : 0)
+    } catch(e) {}
+
+    // Build result
+    const data = {
+      orders: Array.isArray(orders) ? orders : [],
+      sales: Array.isArray(sales) ? sales : [],
+      totalAdSpend,
+      adOrdersSum,
+      reviewsCount,
+      questionsCount,
+    }
+
+    // Cache
+    const timeStr = new Date().toLocaleString('ru-RU', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' })
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data))
+    localStorage.setItem(CACHE_TIME_KEY, timeStr)
+
+    renderData(data)
+    document.getElementById('last-updated').textContent = 'Обновлено: ' + timeStr
+
+  } catch(e) {
+    showError('Ошибка: ' + e.message + '. Проверь токен и URL воркера.')
+  } finally {
+    setLoading(false)
+    btn.classList.remove('loading')
+  }
+}
+
+// ══════════════════════════════════════════
+//  RENDER
+// ══════════════════════════════════════════
+function renderData(data) {
+  const { orders, sales, totalAdSpend, adOrdersSum, reviewsCount, questionsCount } = data
+
+  // Filter today
+  const today = todayStr()
+
+  // Process orders (не отменённые, только сегодня)
+  const todayOrders = orders.filter(o => {
+    const d = (o.date || o.lastChangeDate || '').substring(0, 10)
+    return d === today && !o.isCancel
+  })
+
+  // Process sales (только сегодня, saleID начинается с S)
+  const todaySales = sales.filter(s => {
+    const d = (s.date || s.lastChangeDate || '').substring(0, 10)
+    return d === today && (s.saleID || '').startsWith('S')
+  })
+
+  // Totals
+  const totalOrdersCount = todayOrders.length
+  const totalOrdersRub = todayOrders.reduce((s, o) => s + (o.totalPrice || 0), 0)
+  const totalSalesCount = todaySales.length
+  const totalSalesRub = todaySales.reduce((s, o) => s + (o.totalPrice || 0), 0)
+
+  // Update summary
+  document.getElementById('total-orders').textContent = fmt(totalOrdersCount)
+  document.getElementById('total-orders-rub').textContent = fmtRub(totalOrdersRub)
+  document.getElementById('badge-orders').textContent = totalOrdersCount + ' шт.'
+
+  document.getElementById('total-sales').textContent = fmt(totalSalesCount)
+  document.getElementById('total-sales-rub').textContent = fmtRub(totalSalesRub)
+  document.getElementById('badge-sales').textContent = totalSalesCount + ' шт.'
+
+  document.getElementById('total-adspend').textContent = fmtK(totalAdSpend)
+  const drr = totalSalesRub > 0 ? ((totalAdSpend / totalSalesRub) * 100).toFixed(1) : '—'
+  document.getElementById('badge-drr').textContent = 'ДРР ' + (drr !== '—' ? drr + '%' : '—')
+
+  // Per article
+  const articleMap = {}
+
+  todayOrders.forEach(o => {
+    const art = o.supplierArticle || o.nmId || '—'
+    if (!articleMap[art]) articleMap[art] = { orders: 0, ordersRub: 0, sales: 0, salesRub: 0 }
+    articleMap[art].orders++
+    articleMap[art].ordersRub += o.totalPrice || 0
+  })
+
+  todaySales.forEach(s => {
+    const art = s.supplierArticle || s.nmId || '—'
+    if (!articleMap[art]) articleMap[art] = { orders: 0, ordersRub: 0, sales: 0, salesRub: 0 }
+    articleMap[art].sales++
+    articleMap[art].salesRub += s.totalPrice || 0
+  })
+
+  const articles = Object.entries(articleMap).sort((a, b) => b[1].orders - a[1].orders)
+
+  const list = document.getElementById('articles-list')
+  if (articles.length === 0) {
+    list.innerHTML = '<div class="empty-state">Заказов за сегодня нет</div>'
+  } else {
+    list.innerHTML = articles.map(([art, stat], i) => `
+      <div class="article-card">
+        <div class="article-header">
+          <div class="article-num">${i + 1}</div>
+          <div class="article-name">${art}</div>
+        </div>
+        <div class="article-stats">
+          <div class="article-stat">
+            <div class="article-stat-label">Заказы</div>
+            <div class="article-stat-value">${stat.orders}</div>
+            <div class="article-stat-sub">${fmtK(stat.ordersRub)} ₽</div>
+          </div>
+          <div class="article-stat">
+            <div class="article-stat-label">Выкуп</div>
+            <div class="article-stat-value">${stat.sales}</div>
+            <div class="article-stat-sub">${fmtK(stat.salesRub)} ₽</div>
+          </div>
+          <div class="article-stat">
+            <div class="article-stat-label">Конверсия</div>
+            <div class="article-stat-value">${stat.orders > 0 ? Math.round(stat.sales / stat.orders * 100) : 0}%</div>
+            <div class="article-stat-sub">выкуп</div>
+          </div>
+        </div>
+      </div>
+    `).join('')
+  }
+
+  // Reviews & questions
+  const rEl = document.getElementById('reviews-count')
+  rEl.textContent = reviewsCount
+  rEl.className = 'footer-value' + (reviewsCount > 10 ? ' danger' : reviewsCount > 0 ? ' warn' : '')
+
+  const qEl = document.getElementById('questions-count')
+  qEl.textContent = questionsCount
+  qEl.className = 'footer-value' + (questionsCount > 5 ? ' danger' : questionsCount > 0 ? ' warn' : '')
+}
+
+// ══════════════════════════════════════════
+//  HELPERS
+// ══════════════════════════════════════════
+function fmt(n) { return Number(n).toLocaleString('ru-RU') }
+function fmtRub(n) { return fmtK(n) + ' ₽' }
+function fmtK(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'М'
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'к'
+  return Math.round(n).toString()
+}
+
+function setLoading(show, text = '') {
+  const el = document.getElementById('loading-overlay')
+  el.style.display = show ? 'flex' : 'none'
+  if (text) document.getElementById('loading-text').textContent = text
+}
+
+function setLoadingText(text) {
+  document.getElementById('loading-text').textContent = text
+}
+
+function showError(msg) {
+  const el = document.getElementById('error-banner')
+  if (msg) {
+    el.textContent = msg
+    el.style.display = 'block'
+  } else {
+    el.style.display = 'none'
+  }
+}
+
+// ══════════════════════════════════════════
+init()
+</script>
+</body>
+</html>
