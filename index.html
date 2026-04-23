@@ -706,26 +706,20 @@ async function refreshData() {
 function renderData(data) {
   const { orders, sales, totalAdSpend, adOrdersSum, reviewsCount, questionsCount } = data
 
-  // Filter today
-  const today = todayStr()
+  // API уже вернул данные за сегодня (dateFrom: today)
+  // Не фильтруем по дате повторно — доверяем API
 
-  // Process orders (не отменённые, только сегодня)
-  const todayOrders = orders.filter(o => {
-    const d = (o.date || o.lastChangeDate || '').substring(0, 10)
-    return d === today && !o.isCancel
-  })
+  // Process orders — убираем только отменённые
+  const todayOrders = orders.filter(o => !o.isCancel)
 
-  // Process sales (только сегодня, saleID начинается с S)
-  const todaySales = sales.filter(s => {
-    const d = (s.date || s.lastChangeDate || '').substring(0, 10)
-    return d === today && (s.saleID || '').startsWith('S')
-  })
+  // Process sales — только выкупы (saleID начинается с S), возвраты (R) не считаем
+  const todaySales = sales.filter(s => (s.saleID || '').startsWith('S'))
 
   // Totals
   const totalOrdersCount = todayOrders.length
-  const totalOrdersRub = todayOrders.reduce((s, o) => s + (o.totalPrice || 0), 0)
+  const totalOrdersRub = todayOrders.reduce((s, o) => s + (o.finishedPrice || o.totalPrice || o.priceWithDisc || 0), 0)
   const totalSalesCount = todaySales.length
-  const totalSalesRub = todaySales.reduce((s, o) => s + (o.totalPrice || 0), 0)
+  const totalSalesRub = todaySales.reduce((s, o) => s + (o.finishedPrice || o.totalPrice || o.priceWithDisc || 0), 0)
 
   // Update summary
   document.getElementById('total-orders').textContent = fmt(totalOrdersCount)
@@ -747,14 +741,14 @@ function renderData(data) {
     const art = o.supplierArticle || o.nmId || '—'
     if (!articleMap[art]) articleMap[art] = { orders: 0, ordersRub: 0, sales: 0, salesRub: 0 }
     articleMap[art].orders++
-    articleMap[art].ordersRub += o.totalPrice || 0
+    articleMap[art].ordersRub += o.finishedPrice || o.totalPrice || o.priceWithDisc || 0
   })
 
   todaySales.forEach(s => {
     const art = s.supplierArticle || s.nmId || '—'
     if (!articleMap[art]) articleMap[art] = { orders: 0, ordersRub: 0, sales: 0, salesRub: 0 }
     articleMap[art].sales++
-    articleMap[art].salesRub += s.totalPrice || 0
+    articleMap[art].salesRub += s.finishedPrice || s.totalPrice || s.priceWithDisc || 0
   })
 
   const articles = Object.entries(articleMap).sort((a, b) => b[1].orders - a[1].orders)
